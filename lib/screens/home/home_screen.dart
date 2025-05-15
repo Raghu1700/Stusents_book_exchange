@@ -7,6 +7,8 @@ import '../add_book/add_book_screen.dart';
 import '../search/search_screen.dart';
 import '../favorites/favorites_screen.dart';
 import '../profile/profile_screen.dart';
+import 'package:rive_animation/services/auth_service.dart';
+import 'components/book_grid.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -35,6 +37,20 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Student Book Exchange'),
+        backgroundColor: Theme.of(context).primaryColor,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              // Sign out
+              await AuthService().signOut();
+            },
+          ),
+        ],
+      ),
       body: IndexedStack(
         index: _selectedIndex,
         children: _pages,
@@ -84,70 +100,64 @@ class HomeContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 40),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text(
-                "Available Books",
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium!
-                    .copyWith(color: Colors.black, fontWeight: FontWeight.bold),
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: Text(
+              "Available Books",
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium!
+                  .copyWith(color: Colors.black, fontWeight: FontWeight.bold),
             ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: availableBooks
-                    .map(
-                      (book) => Padding(
-                        padding: const EdgeInsets.only(left: 20),
-                        child: CourseCard(
-                          title: book.title,
-                          iconSrc: book.iconSrc,
-                          color: book.color,
-                          subject: book.subject,
-                          bookClass: book.bookClass,
-                          price: book.price,
-                          seller: book.seller,
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
+          ),
+          Expanded(
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4.0),
+              child: BookGrid(),
             ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Recently Added",
-                    style: Theme.of(context).textTheme.headlineSmall!.copyWith(
+          ),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    "Add New Book",
+                    style: Theme.of(context).textTheme.bodyLarge!.copyWith(
                         color: Colors.black, fontWeight: FontWeight.bold),
                   ),
-                ],
-              ),
-            ),
-            ...recentlyAddedBooks.map((book) => Padding(
-                  padding:
-                      const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-                  child: SecondaryCourseCard(
-                    title: book.title,
-                    iconSrc: book.iconSrc,
-                    color: book.color,
-                    subject: book.subject,
-                    bookClass: book.bookClass,
-                    price: book.price,
-                    seller: book.seller,
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    if (context.findAncestorStateOfType<_HomePageState>() !=
+                        null) {
+                      context
+                          .findAncestorStateOfType<_HomePageState>()!
+                          ._onItemTapped(2);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    minimumSize: const Size(100, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                )),
-          ],
-        ),
+                  child: const Text(
+                    'Add Book',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

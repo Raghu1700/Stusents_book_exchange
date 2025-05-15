@@ -19,6 +19,7 @@ class SignUpForm extends StatefulWidget {
 
 class _SignUpFormState extends State<SignUpForm> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
@@ -35,6 +36,7 @@ class _SignUpFormState extends State<SignUpForm> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -86,6 +88,7 @@ class _SignUpFormState extends State<SignUpForm> {
     });
 
     try {
+      String fullName = _nameController.text.trim();
       String email = _emailController.text.trim();
       String password = _passwordController.text.trim();
       String phone = _phoneController.text.trim();
@@ -96,6 +99,7 @@ class _SignUpFormState extends State<SignUpForm> {
       final result = await authService.createUserWithEmailAndPassword(
         email: email,
         password: password,
+        fullName: fullName,
         phoneNumber: phone,
       );
 
@@ -206,6 +210,28 @@ class _SignUpFormState extends State<SignUpForm> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                "Full Name",
+                style: TextStyle(
+                  color: Colors.black54,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 8, bottom: 16),
+                child: TextFormField(
+                  controller: _nameController,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return "Name is required";
+                    }
+                    return null;
+                  },
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                ),
+              ),
               const Text(
                 "Email",
                 style: TextStyle(
