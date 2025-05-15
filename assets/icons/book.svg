@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <g id="book-icon" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <path d="M21,4H3C1.9,4 1,4.9 1,6v12c0,1.1 0.9,2 2,2h18c1.1,0 2-0.9 2-2V6C23,4.9 22.1,4 21,4zM21,18H3V6h18V18z" id="book-outline" fill="#000000"></path>
+        <path d="M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5S14.76,7,12,7zM13,15h-2v-2h-2v-2h2V9h2v2h2v2h-2V15z" id="bookmark" fill="#000000"></path>
+    </g>
+</svg> 
