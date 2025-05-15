@@ -120,7 +120,7 @@ class BookService {
     }
   }
 
-  // Add a new book
+  // Add a new book - Simplified with no image upload
   Future<String?> addBook({
     required String title,
     required String author,
@@ -133,7 +133,8 @@ class BookService {
     String? edition,
     String? isbn,
     List<String>? tags,
-    File? coverImage,
+    File?
+        coverImage, // Keep parameter for backward compatibility, but don't use it
   }) async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -179,27 +180,6 @@ class BookService {
         print('Book document created: ${docSnapshot.exists}');
         print('Book added successfully with ID: ${docRef.id}');
 
-        // Try to upload image after the book is created to avoid blocking book creation
-        if (coverImage != null) {
-          try {
-            final storageRef = _storage.ref().child(
-                'book_covers/${docRef.id}_${DateTime.now().millisecondsSinceEpoch}');
-
-            final uploadTask = storageRef.putFile(coverImage);
-            print('Uploading image...');
-
-            final snapshot = await uploadTask.whenComplete(() {});
-            final coverImageUrl = await snapshot.ref.getDownloadURL();
-
-            // Update the book with the image URL
-            await docRef.update({'coverImageUrl': coverImageUrl});
-            print('Book updated with image URL: $coverImageUrl');
-          } catch (e) {
-            print('Error uploading image but book was created: $e');
-            // Book is still created even if image upload fails
-          }
-        }
-
         return docRef.id;
       } catch (e) {
         print('Error adding book to Firestore: $e');
@@ -213,7 +193,7 @@ class BookService {
     }
   }
 
-  // Update a book
+  // Update a book - Simplified with no image handling
   Future<bool> updateBook({
     required String bookId,
     String? title,
@@ -226,7 +206,8 @@ class BookService {
     String? edition,
     String? isbn,
     List<String>? tags,
-    File? coverImage,
+    File?
+        coverImage, // Keep parameter for backward compatibility, but don't use it
   }) async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -248,28 +229,6 @@ class BookService {
         throw Exception('You can only update your own books');
       }
 
-      String? coverImageUrl = existingBook.coverImageUrl;
-
-      // Upload new cover image if provided
-      if (coverImage != null) {
-        // Delete old image if exists
-        if (coverImageUrl != null && coverImageUrl.isNotEmpty) {
-          try {
-            await _storage.refFromURL(coverImageUrl).delete();
-          } catch (e) {
-            print('Error deleting old image: $e');
-            // Continue anyway
-          }
-        }
-
-        // Upload new image
-        final storageRef = _storage.ref().child(
-            'book_covers/${DateTime.now().millisecondsSinceEpoch}_${coverImage.path.split('/').last}');
-        final uploadTask = storageRef.putFile(coverImage);
-        final snapshot = await uploadTask.whenComplete(() {});
-        coverImageUrl = await snapshot.ref.getDownloadURL();
-      }
-
       // Update fields
       final updateData = <String, dynamic>{};
       if (title != null) updateData['title'] = title;
@@ -282,7 +241,6 @@ class BookService {
       if (edition != null) updateData['edition'] = edition;
       if (isbn != null) updateData['isbn'] = isbn;
       if (tags != null) updateData['tags'] = tags;
-      if (coverImage != null) updateData['coverImageUrl'] = coverImageUrl;
 
       // Update in Firestore
       await _firestore
@@ -296,7 +254,7 @@ class BookService {
     }
   }
 
-  // Delete a book
+  // Delete a book - Simplified with no image handling
   Future<bool> deleteBook(String bookId) async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -316,16 +274,6 @@ class BookService {
       // Verify that the current user is the seller
       if (book.sellerId != currentUser.uid) {
         throw Exception('You can only delete your own books');
-      }
-
-      // Delete cover image if exists
-      if (book.coverImageUrl != null && book.coverImageUrl!.isNotEmpty) {
-        try {
-          await _storage.refFromURL(book.coverImageUrl!).delete();
-        } catch (e) {
-          print('Error deleting image: $e');
-          // Continue anyway
-        }
       }
 
       // Delete document from Firestore

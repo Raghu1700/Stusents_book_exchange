@@ -42,31 +42,9 @@ class _AddBookScreenState extends State<AddBookScreen> {
     '12'
   ];
 
-  File? _coverImage;
   bool _isLoading = false;
   String _errorMessage = '';
   final BookService _bookService = BookService();
-
-  Future<void> _pickImage() async {
-    try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 800,
-        maxHeight: 800,
-        imageQuality: 85,
-      );
-
-      if (image != null) {
-        setState(() {
-          _coverImage = File(image.path);
-        });
-      }
-    } catch (e) {
-      print('Error picking image: $e');
-      // Don't show error to user to avoid crashes
-    }
-  }
 
   Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
@@ -99,7 +77,7 @@ class _AddBookScreenState extends State<AddBookScreen> {
           sellerPhone: _sellerPhoneController.text.trim(),
           edition: '',
           isbn: '',
-          coverImage: _coverImage,
+          coverImage: null, // Don't include book cover image
         );
 
         print('Book submission result - bookId: $bookId');
@@ -120,7 +98,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
             _priceController.clear();
             _sellerPhoneController.clear();
             setState(() {
-              _coverImage = null;
               _isLoading = false;
             });
 
@@ -275,31 +252,6 @@ class _AddBookScreenState extends State<AddBookScreen> {
                       },
                     ),
                     const SizedBox(height: 24),
-
-                    // Book Cover Image - Optional
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: _pickImage,
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Add Book Cover (Optional)'),
-                      ),
-                    ),
-                    if (_coverImage != null)
-                      Center(
-                        child: Container(
-                          width: 150,
-                          height: 200,
-                          margin: EdgeInsets.only(top: 8),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(_coverImage!),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 16),
 
                     if (_errorMessage.isNotEmpty)
                       Padding(

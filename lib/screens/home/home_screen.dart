@@ -7,6 +7,7 @@ import '../add_book/add_book_screen.dart';
 import '../search/search_screen.dart';
 import '../favorites/favorites_screen.dart';
 import '../profile/profile_screen.dart';
+import '../bidding/bids_screen.dart';
 import 'package:rive_animation/services/auth_service.dart';
 import 'components/book_grid.dart';
 
@@ -25,6 +26,7 @@ class _HomePageState extends State<HomePage> {
     const SearchScreen(),
     const AddBookScreen(),
     const FavoritesScreen(),
+    const BidsScreen(),
     const ProfileScreen(),
   ];
 
@@ -81,6 +83,11 @@ class _HomePageState extends State<HomePage> {
             icon: Icon(Icons.favorite_border_outlined),
             activeIcon: Icon(Icons.favorite),
             label: 'Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.attach_money),
+            activeIcon: Icon(Icons.attach_money),
+            label: 'Bids',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

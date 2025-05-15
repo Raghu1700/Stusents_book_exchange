@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:rive_animation/model/book.dart';
 import 'package:rive_animation/services/book_service.dart';
+import 'package:rive_animation/utils/avatar_generator.dart';
 import 'package:intl/intl.dart';
 
 class BookCard extends StatelessWidget {
@@ -37,60 +38,17 @@ class BookCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Book Cover Image
+                // Book Cover - Replace with Animated Avatar
                 AspectRatio(
                   aspectRatio: 1.0, // Square aspect ratio
-                  child: book.coverImageUrl != null &&
-                          book.coverImageUrl!.isNotEmpty
-                      ? Image.network(
-                          book.coverImageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              color: Colors.grey[200],
-                              child: Center(
-                                child: Icon(
-                                  Icons.book,
-                                  size: 24,
-                                  color: Colors.grey[400],
-                                ),
-                              ),
-                            );
-                          },
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return Container(
-                              color: Colors.grey[200],
-                              child: Center(
-                                child: SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    value: loadingProgress.expectedTotalBytes !=
-                                            null
-                                        ? loadingProgress
-                                                .cumulativeBytesLoaded /
-                                            (loadingProgress
-                                                    .expectedTotalBytes ??
-                                                1)
-                                        : null,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        )
-                      : Container(
-                          color: Colors.grey[200],
-                          child: Center(
-                            child: Icon(
-                              Icons.book,
-                              size: 24,
-                              color: Colors.grey[400],
-                            ),
-                          ),
-                        ),
+                  child: ClipRRect(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(4)),
+                    child: AvatarGenerator.buildAnimatedAvatar(
+                      book.title,
+                      size: MediaQuery.of(context).size.width / 2 - 20,
+                    ),
+                  ),
                 ),
 
                 // Ultra compact book details
