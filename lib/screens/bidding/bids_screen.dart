@@ -3,6 +3,7 @@ import 'package:rive_animation/model/bid.dart';
 import 'package:rive_animation/model/book.dart';
 import 'package:rive_animation/services/bid_service.dart';
 import 'package:rive_animation/services/book_service.dart';
+import 'package:rive_animation/components/animated_background.dart';
 import 'package:intl/intl.dart';
 
 class BidsScreen extends StatefulWidget {
@@ -148,27 +149,41 @@ class _BidsScreenState extends State<BidsScreen>
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 16),
-                      ElevatedButton(
+                      ElevatedButton.icon(
                         onPressed: _loadBids,
-                        child: const Text('Try Again'),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Try Again'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 )
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    // Bids I Made Tab
-                    _myBids.isEmpty
-                        ? _buildEmptyState('You haven\'t placed any bids yet.')
-                        : _buildBidsList(_myBids, 'my'),
+              : AnimatedBackground(
+                  blurSigma: 25.0,
+                  overlayColor: Colors.white.withOpacity(0.3),
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // Bids I Made Tab
+                      _myBids.isEmpty
+                          ? _buildEmptyState(
+                              'You haven\'t placed any bids yet.')
+                          : _buildBidsList(_myBids, 'my'),
 
-                    // Bids Received Tab
-                    _receivedBids.isEmpty
-                        ? _buildEmptyState(
-                            'You haven\'t received any bids on your books yet.')
-                        : _buildBidsList(_receivedBids, 'received'),
-                  ],
+                      // Bids Received Tab
+                      _receivedBids.isEmpty
+                          ? _buildEmptyState(
+                              'You haven\'t received any bids on your books yet.')
+                          : _buildBidsList(_receivedBids, 'received'),
+                    ],
+                  ),
                 ),
     );
   }
@@ -195,9 +210,18 @@ class _BidsScreenState extends State<BidsScreen>
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),
-          ElevatedButton(
+          ElevatedButton.icon(
             onPressed: _loadBids,
-            child: const Text('Refresh'),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Refresh'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 12,
+              ),
+            ),
           ),
         ],
       ),
@@ -206,7 +230,7 @@ class _BidsScreenState extends State<BidsScreen>
 
   Widget _buildBidsList(List<Bid> bids, String type) {
     final formatter = NumberFormat.currency(
-      symbol: '\$',
+      symbol: '₹',
       decimalDigits: 2,
     );
 
@@ -331,6 +355,11 @@ class _BidsScreenState extends State<BidsScreen>
                           onPressed: () => _handleBidAction(bid, 'reject'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                           child: const Text('Reject'),
                         ),
@@ -340,6 +369,10 @@ class _BidsScreenState extends State<BidsScreen>
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                           child: const Text('Accept'),
                         ),
@@ -352,6 +385,11 @@ class _BidsScreenState extends State<BidsScreen>
                         onPressed: () => _handleBidAction(bid, 'delete'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.red,
+                          side: const BorderSide(color: Colors.red),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                         child: const Text('Cancel Bid'),
                       ),

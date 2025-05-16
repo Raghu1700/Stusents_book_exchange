@@ -73,8 +73,8 @@ List<Menu> bottomNavItems = [
     title: "Add Book",
     rive: RiveModel(
         src: "assets/RiveAssets/icons.riv",
-        artboard: "TIMER",
-        stateMachineName: "TIMER_Interactivity"),
+        artboard: "SETTINGS",
+        stateMachineName: "SETTINGS_Interactivity"),
   ),
   Menu(
     title: "Favorites",

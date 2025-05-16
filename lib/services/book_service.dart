@@ -135,6 +135,7 @@ class BookService {
     List<String>? tags,
     File?
         coverImage, // Keep parameter for backward compatibility, but don't use it
+    String? subject,
   }) async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -159,6 +160,7 @@ class BookService {
         'isAvailable': true,
         'category': category.isNotEmpty ? category : 'Standard',
         'grade': grade ?? 'All',
+        'subject': subject ?? 'Other',
       };
 
       // Add seller phone if provided

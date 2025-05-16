@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:rive_animation/model/book.dart';
 import 'package:rive_animation/services/book_service.dart';
-import 'package:intl/intl.dart';
-import 'package:rive_animation/screens/bidding/place_bid_screen.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rive_animation/services/auth_service.dart';
 import 'package:rive_animation/services/bid_service.dart';
 import 'package:rive_animation/model/bid.dart';
+import 'package:rive_animation/screens/bidding/place_bid_screen.dart';
 import 'package:rive_animation/utils/avatar_generator.dart';
+import 'package:rive_animation/components/animated_background.dart';
+import 'package:rive_animation/components/animated_button.dart';
+import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:rive_animation/main.dart' show authService;
 
 class BookDetailsScreen extends StatefulWidget {
   final Book book;
@@ -25,14 +30,32 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   bool _isOwner = false;
   bool _hasBids = false;
   List<Bid> _bids = [];
+  String? _currentUserPhone;
 
   @override
   void initState() {
     super.initState();
     _checkBookmarkStatus();
     _checkOwnership();
+    _loadCurrentUserPhone();
     if (widget.book.id != null) {
       _checkBidsStatus();
+    }
+  }
+
+  Future<void> _loadCurrentUserPhone() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      try {
+        final userData = await authService.getUserData(currentUser.uid);
+        if (userData != null && mounted) {
+          setState(() {
+            _currentUserPhone = userData['phoneNumber'];
+          });
+        }
+      } catch (e) {
+        print('Error loading user phone: $e');
+      }
     }
   }
 
@@ -128,18 +151,114 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   }
 
   Future<void> _contactSeller() async {
-    if (widget.book.sellerPhone != null &&
-        widget.book.sellerPhone!.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Contact seller at: ${widget.book.sellerPhone}'),
-          backgroundColor: Colors.green,
-        ),
-      );
+    String? phoneNumber = widget.book.sellerPhone;
+
+    // If seller phone is not provided, use the current user's phone
+    if (phoneNumber == null || phoneNumber.isEmpty) {
+      phoneNumber = _currentUserPhone;
+    }
+
+    if (phoneNumber != null && phoneNumber.isNotEmpty) {
+      final bookTitle = widget.book.title;
+      final price = NumberFormat.currency(
+        symbol: '₹',
+        decimalDigits: 2,
+      ).format(widget.book.price);
+
+      // Create SMS URI
+      final uri = Uri.parse(
+          'sms:$phoneNumber?body=Hi, I am interested in your book "$bookTitle" priced at $price on the Student Book Exchange app.');
+
+      try {
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri);
+        } else {
+          // Fallback if SMS can't be launched
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Contact seller at: $phoneNumber'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error launching SMS: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error sending SMS: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No contact information available'),
+          content: Text(
+              'No contact information available. Please update your profile with a phone number.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  Future<void> _contactSellerWhatsApp() async {
+    String? phoneNumber = widget.book.sellerPhone;
+
+    // If seller phone is not provided, use the current user's phone
+    if (phoneNumber == null || phoneNumber.isEmpty) {
+      phoneNumber = _currentUserPhone;
+    }
+
+    if (phoneNumber != null && phoneNumber.isNotEmpty) {
+      // Format phone number - remove any spaces or special characters
+      phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+
+      // Add country code if not present (assuming Indian numbers)
+      if (!phoneNumber.startsWith('+')) {
+        phoneNumber = '91$phoneNumber';
+      }
+
+      final bookTitle = widget.book.title;
+      final price = NumberFormat.currency(
+        symbol: '₹',
+        decimalDigits: 2,
+      ).format(widget.book.price);
+
+      // Create WhatsApp URI
+      final message =
+          'Hi, I am interested in your book "$bookTitle" priced at $price on the Student Book Exchange app.';
+      final encodedMessage = Uri.encodeComponent(message);
+      final uri = Uri.parse('https://wa.me/$phoneNumber?text=$encodedMessage');
+
+      try {
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Could not launch WhatsApp'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        print('Error launching WhatsApp: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error opening WhatsApp: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'No contact information available. Please update your profile with a phone number.'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -250,7 +369,7 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
                     itemBuilder: (context, index) {
                       final bid = _bids[index];
                       final formatter = NumberFormat.currency(
-                        symbol: '\$',
+                        symbol: '₹',
                         decimalDigits: 2,
                       );
 
@@ -452,274 +571,315 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(
-      symbol: '\$',
+      symbol: '₹',
       decimalDigits: 2,
     );
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Book Details'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
+      body: AnimatedBackground(
+        blurSigma: 25.0,
+        overlayColor: Colors.white.withOpacity(0.3),
+        child: SafeArea(
+          child: Stack(
+            children: [
+              CustomScrollView(
+                slivers: [
+                  // App Bar
+                  SliverAppBar(
+                    expandedHeight: 400,
+                    floating: false,
+                    pinned: true,
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Theme.of(context).primaryColor.withOpacity(0.1),
+                              Colors.white.withOpacity(0.1),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Hero(
+                          tag: widget.book.id ?? widget.book.title,
+                          child: AvatarGenerator.buildAnimatedAvatar(
+                            widget.book.title,
+                            size: 300,
+                          ),
+                        ),
+                      ),
                     ),
-                  )
-                : Icon(
-                    _isBookmarked ? Icons.favorite : Icons.favorite_border,
-                    color: _isBookmarked ? Colors.red : Colors.white,
-                  ),
-            onPressed: _isLoading ? null : _toggleBookmark,
-          ),
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: _shareBook,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Book Image - Replace with Animated Avatar
-            SizedBox(
-              width: double.infinity,
-              height: 250,
-              child: Center(
-                child: AvatarGenerator.buildAnimatedAvatar(
-                  widget.book.title,
-                  size: 200,
-                ),
-              ),
-            ),
-
-            // Book Details
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    widget.book.title,
-                    style: Theme.of(context).textTheme.headlineSmall!.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Author
-                  Text(
-                    'by ${widget.book.author}',
-                    style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                          color: Colors.grey[700],
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Price, Grade, and Condition
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        // Price
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            formatter.format(widget.book.price),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Grade
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.blue[700],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            'Grade: ${widget.book.grade}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Condition
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _getConditionColor(widget.book.condition),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            widget.book.condition,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
+                    leading: Container(
+                      margin: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.pop(context),
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Description
-                  Text(
-                    'Description',
-                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                          fontWeight: FontWeight.bold,
+                    actions: [
+                      if (!_isOwner)
+                        Container(
+                          margin: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            icon: Icon(
+                              _isBookmarked
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color:
+                                  _isBookmarked ? Colors.red : Colors.black87,
+                            ),
+                            onPressed: _isLoading ? null : _toggleBookmark,
+                          ),
                         ),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.book.description,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
-                  const SizedBox(height: 24),
 
-                  // Seller Information
-                  Text(
-                    'Seller Information',
-                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    elevation: 2,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                  // Book Details
+                  SliverToBoxAdapter(
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Theme.of(context).primaryColor,
-                                child: const Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Text(
-                                widget.book.sellerName,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleMedium!
-                                    .copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
+                          // Title
                           Text(
-                            'Contact through GPay:',
-                            style: Theme.of(context).textTheme.titleSmall,
+                            widget.book.title,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'Poppins',
+                              color: Colors.black87,
+                            ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.book.sellerPhone ??
-                                'No phone number provided',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                          const SizedBox(height: 16),
-                          Column(
-                            children: [
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  onPressed: _contactSeller,
-                                  icon: const Icon(Icons.phone),
-                                  label: const Text('Contact Seller'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor:
-                                        Theme.of(context).primaryColor,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
+                          const SizedBox(height: 8),
 
-                              // Show different buttons based on user role
-                              if (_isOwner && _hasBids)
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _showBids,
-                                    icon: const Icon(Icons.visibility),
-                                    label: const Text('View Bids'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.blue,
-                                      side:
-                                          const BorderSide(color: Colors.blue),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
-                                    ),
-                                  ),
-                                )
-                              else if (!_isOwner)
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: OutlinedButton.icon(
-                                    onPressed: _navigateToPlaceBid,
-                                    icon: const Icon(Icons.attach_money),
-                                    label: const Text('Place a Bid'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor:
-                                          Theme.of(context).primaryColor,
-                                      side: BorderSide(
-                                          color:
-                                              Theme.of(context).primaryColor),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                          // Author
+                          Text(
+                            'by ${widget.book.author}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey[600],
+                              fontFamily: 'Intel',
+                            ),
                           ),
+                          const SizedBox(height: 16),
+
+                          // Price
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .primaryColor
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              formatter.format(widget.book.price),
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).primaryColor,
+                                fontFamily: 'Poppins',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Description
+                          Text(
+                            'Description',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.book.description,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey[600],
+                              height: 1.5,
+                              fontFamily: 'Intel',
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Details Section
+                          Text(
+                            'Details',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildDetailRow('Condition', widget.book.condition),
+                          _buildDetailRow('Category', widget.book.category),
+                          _buildDetailRow('Grade', widget.book.grade),
+                          const SizedBox(height: 24),
+
+                          // Seller Information Section
+                          Text(
+                            'Seller Information',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey[800],
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildDetailRow('Name', widget.book.sellerName),
+                          if (widget.book.sellerPhone != null &&
+                              widget.book.sellerPhone!.isNotEmpty)
+                            _buildDetailRow('Phone', widget.book.sellerPhone!),
+                          const SizedBox(
+                              height: 100), // Space for bottom buttons
                         ],
                       ),
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+
+              // Bottom Action Buttons
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
+                  ),
+                  child: !_isOwner
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _navigateToPlaceBid,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(context).primaryColor,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(double.infinity, 50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.currency_rupee, size: 24),
+                              label: const Text(
+                                'Place Your Bid',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: _contactSellerWhatsApp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor:
+                                    const Color(0xFF25D366), // WhatsApp green
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(double.infinity, 50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.chat, size: 24),
+                              label: const Text(
+                                'Contact Seller on WhatsApp',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : ElevatedButton.icon(
+                          onPressed: _showBids,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            minimumSize: const Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.currency_exchange, size: 24),
+                          label: Text(
+                            _hasBids
+                                ? 'View Bids (${_bids.length})'
+                                : 'No Bids Yet',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "$label:",
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontFamily: 'Intel',
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'Intel',
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

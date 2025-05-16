@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../model/course.dart';
-import '../../book_detail/book_detail_screen.dart';
+import 'package:rive_animation/model/course.dart';
+import 'package:rive_animation/model/book.dart';
+import 'package:rive_animation/screens/book_details/book_details_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class CourseCard extends StatelessWidget {
   const CourseCard({
@@ -126,15 +128,23 @@ class CourseCard extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => BookDetailScreen(
-                                book: Course(
+                              builder: (context) => BookDetailsScreen(
+                                book: Book(
+                                  id: null,
                                   title: title,
-                                  iconSrc: iconSrc,
-                                  color: color,
-                                  subject: subject!,
-                                  bookClass: bookClass!,
-                                  price: price!,
-                                  seller: seller!,
+                                  author:
+                                      seller!, // Using seller as author for now
+                                  description: 'No description available',
+                                  price: double.tryParse(
+                                          price!.replaceAll('₹', '')) ??
+                                      0.0,
+                                  condition: 'Good',
+                                  category: subject!,
+                                  grade: bookClass!,
+                                  sellerName: seller!,
+                                  sellerPhone: '',
+                                  sellerId: '',
+                                  createdAt: Timestamp.now(),
                                 ),
                               ),
                             ),

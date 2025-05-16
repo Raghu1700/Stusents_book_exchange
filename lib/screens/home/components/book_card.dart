@@ -19,7 +19,7 @@ class BookCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(
-      symbol: '\$',
+      symbol: '₹',
       decimalDigits: 0,
     );
 
@@ -43,10 +43,11 @@ class BookCard extends StatelessWidget {
                   aspectRatio: 1.0, // Square aspect ratio
                   child: ClipRRect(
                     borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(4)),
+                        const BorderRadius.vertical(top: Radius.circular(4)),
                     child: AvatarGenerator.buildAnimatedAvatar(
                       book.title,
-                      size: MediaQuery.of(context).size.width / 2 - 20,
+                      size: MediaQuery.of(context).size.width / 3 -
+                          16, // Adjusted for 3 columns
                     ),
                   ),
                 ),
@@ -65,7 +66,7 @@ class BookCard extends StatelessWidget {
                             book.title,
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                              fontSize: 9, // Slightly smaller font
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -77,7 +78,7 @@ class BookCard extends StatelessWidget {
                             top: 0,
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 3,
+                                horizontal: 2,
                                 vertical: 1,
                               ),
                               decoration: BoxDecoration(
@@ -89,7 +90,7 @@ class BookCard extends StatelessWidget {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 9,
+                                  fontSize: 8, // Slightly smaller font
                                 ),
                               ),
                             ),

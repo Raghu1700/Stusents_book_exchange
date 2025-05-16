@@ -9,12 +9,18 @@ class BookGrid extends StatefulWidget {
   final String? category;
   final String? sellerId;
   final String? searchQuery;
+  final bool skipFirstBooks;
+  final int skipCount;
+  final int? limit;
 
   const BookGrid({
     Key? key,
     this.category,
     this.sellerId,
     this.searchQuery,
+    this.skipFirstBooks = false,
+    this.skipCount = 2,
+    this.limit,
   }) : super(key: key);
 
   @override
@@ -45,7 +51,10 @@ class _BookGridState extends State<BookGrid> {
     super.didUpdateWidget(oldWidget);
     if (widget.category != oldWidget.category ||
         widget.sellerId != oldWidget.sellerId ||
-        widget.searchQuery != oldWidget.searchQuery) {
+        widget.searchQuery != oldWidget.searchQuery ||
+        widget.skipFirstBooks != oldWidget.skipFirstBooks ||
+        widget.skipCount != oldWidget.skipCount ||
+        widget.limit != oldWidget.limit) {
       _resetList();
       _loadBooks();
     }
@@ -114,14 +123,30 @@ class _BookGridState extends State<BookGrid> {
         print(
             'Fetching books from Firestore collection: ${_bookService.booksCollection}');
 
+        int fetchLimit = widget.limit ?? 10;
+        if (widget.skipFirstBooks && _books.isEmpty) {
+          // On first load in skip mode, load more to account for skipped books
+          fetchLimit = fetchLimit + widget.skipCount;
+        }
+
         try {
           final books = await _bookService.getBooks(
-            limit: 10,
+            limit: fetchLimit,
             lastDocument: _lastDocument,
             category: widget.category,
           );
 
           print('Loaded ${books.length} books from Firestore');
+
+          // If we need to skip the first books (for home screen)
+          if (widget.skipFirstBooks &&
+              _books.isEmpty &&
+              books.length > widget.skipCount) {
+            loadedBooks = books.skip(widget.skipCount).toList();
+          } else {
+            loadedBooks = books;
+          }
+
           if (books.isNotEmpty) {
             for (var book in books) {
               print('Book: ${book.title} by ${book.author} - ID: ${book.id}');
@@ -129,8 +154,6 @@ class _BookGridState extends State<BookGrid> {
           } else {
             print('No books found in Firestore collection');
           }
-
-          loadedBooks = books;
         } catch (e) {
           print('Error fetching books: $e');
           loadedBooks = [];
@@ -140,8 +163,9 @@ class _BookGridState extends State<BookGrid> {
           _books.addAll(loadedBooks);
           _isLoading = false;
           _isInitialLoading = false;
-          _hasMore = loadedBooks.length ==
-              10; // Assume there's more if we got the full page
+          _hasMore = widget.limit == null &&
+              loadedBooks.length ==
+                  10; // Only enable pagination if no limit is set
           // Skip pagination for now to avoid potential errors
           _lastDocument = null;
         });

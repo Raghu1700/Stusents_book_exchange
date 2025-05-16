@@ -67,31 +67,67 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Student Book Exchange',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFEEF1F8),
         primarySwatch: Colors.blue,
-        primaryColor: const Color(0xFF3D5AF1), // Primary blue color
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          secondary: const Color(0xFF22B07D), // Secondary green color
-        ),
-        fontFamily: "Intel",
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white,
-            backgroundColor: const Color(0xFF3D5AF1),
+        primaryColor: const Color(0xFF2196F3),
+        fontFamily: 'Intel',
+        textTheme: const TextTheme(
+          displayLarge: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.bold,
+          ),
+          displayMedium: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.bold,
+          ),
+          displaySmall: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.bold,
+          ),
+          headlineLarge: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.bold,
+          ),
+          headlineMedium: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.bold,
+          ),
+          headlineSmall: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+          ),
+          titleLarge: TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+          ),
+          titleMedium: TextStyle(
+            fontFamily: 'Intel',
+            fontWeight: FontWeight.w500,
+          ),
+          titleSmall: TextStyle(
+            fontFamily: 'Intel',
+            fontWeight: FontWeight.w500,
+          ),
+          bodyLarge: TextStyle(
+            fontFamily: 'Intel',
+          ),
+          bodyMedium: TextStyle(
+            fontFamily: 'Intel',
+          ),
+          bodySmall: TextStyle(
+            fontFamily: 'Intel',
           ),
         ),
-        inputDecorationTheme: const InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          errorStyle: TextStyle(height: 0),
-          border: defaultInputBorder,
-          enabledBorder: defaultInputBorder,
-          focusedBorder: defaultInputBorder,
-          errorBorder: defaultInputBorder,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2196F3),
+          brightness: Brightness.light,
+        ).copyWith(
+          secondary: const Color(0xFF2196F3),
         ),
+        useMaterial3: true,
       ),
-      home: const AuthenticationWrapper(), // Go directly to the normal app
+      home: const AuthenticationWrapper(),
     );
   }
 }

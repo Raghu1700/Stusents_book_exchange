@@ -6,6 +6,7 @@ import 'package:rive_animation/constants.dart';
 import 'package:rive_animation/screens/home/home_screen.dart';
 import 'package:rive_animation/screens/add_book/add_book_screen.dart';
 import 'package:rive_animation/screens/search/search_screen.dart';
+import 'package:rive_animation/screens/favorites/favorites_screen.dart';
 import 'package:rive_animation/utils/rive_utils.dart';
 
 import '../../model/menu.dart';
@@ -47,7 +48,7 @@ class _EntryPointState extends State<EntryPoint>
       case "Add Book":
         return const AddBookScreen();
       case "Favorites":
-        return const Center(child: Text("Favorites coming soon!"));
+        return const FavoritesScreen();
       case "Profile":
         return const Center(child: Text("User Profile coming soon!"));
       default:
@@ -87,6 +88,18 @@ class _EntryPointState extends State<EntryPoint>
       extendBody: true,
       resizeToAvoidBottomInset: false,
       backgroundColor: backgroundColor2,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AddBookScreen(),
+            ),
+          );
+        },
+        backgroundColor: Theme.of(context).primaryColor,
+        child: const Icon(Icons.add_circle_outline, color: Colors.white),
+      ),
       body: Stack(
         children: [
           AnimatedPositioned(
