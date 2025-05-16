@@ -18,18 +18,72 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const HomeContent(),
-    const SearchScreen(),
-    const AddBookScreen(),
-    const FavoritesScreen(),
-    const BidsScreen(),
-    const ProfileScreen(),
-  ];
+  // Global key for accessing HomeContent state
+  final GlobalKey<HomeContentState> _homeContentKey =
+      GlobalKey<HomeContentState>();
+
+  // Pages with HomeContent having a key
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      HomeContent(key: _homeContentKey),
+      const SearchScreen(),
+      const AddBookScreen(),
+      const FavoritesScreen(),
+      const BidsScreen(),
+      const ProfileScreen(),
+    ];
+  }
+
+  // Method to refresh home content
+  void _refreshHomeContent() {
+    _homeContentKey.currentState?.refreshBooks();
+  }
 
   void _onItemTapped(int index) {
+    // If going to the add book screen, refresh on return
+    if (index == 2) {
+      Navigator.of(context)
+          .push(MaterialPageRoute(
+        builder: (context) => const AddBookScreen(),
+      ))
+          .then((bookAdded) {
+        // If book was added, refresh the home content
+        if (bookAdded == true) {
+          _refreshHomeContent();
+        }
+      });
+      return;
+    }
+
+    // If going to the bids screen, use direct navigation
+    if (index == 4) {
+      // Force clean restart of the BidsScreen to ensure data is fresh
+      final bidScreen = const BidsScreen();
+      Navigator.of(context)
+          .push(MaterialPageRoute(
+        builder: (context) => bidScreen,
+      ))
+          .then((_) {
+        // When returning from bids, refresh the current page
+        setState(() {
+          // Refresh current view
+        });
+      });
+      return;
+    }
+
+    // For other tabs, just change the selected index
     setState(() {
       _selectedIndex = index;
+
+      // If navigating back to home from another tab, refresh the books
+      if (index == 0 && _selectedIndex != 0) {
+        _refreshHomeContent();
+      }
     });
   }
 
@@ -48,10 +102,16 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Theme.of(context).primaryColor,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              // Sign out
-              await AuthService().signOut();
+            icon: const Icon(
+              Icons.favorite,
+              color: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const FavoritesScreen(),
+                ),
+              );
             },
           ),
         ],

@@ -5,6 +5,7 @@ import 'package:rive_animation/services/bid_service.dart';
 import 'package:rive_animation/utils/avatar_generator.dart';
 import 'package:rive_animation/components/animated_background.dart';
 import 'package:rive_animation/components/animated_button.dart';
+import 'package:rive_animation/screens/bidding/bids_screen.dart';
 
 class PlaceBidScreen extends StatefulWidget {
   final Book book;
@@ -47,30 +48,77 @@ class _PlaceBidScreenState extends State<PlaceBidScreen> {
 
     try {
       final amount = double.parse(_bidController.text);
+      final message = _messageController.text.trim();
+      final phone = _bidderPhoneController.text.trim();
+
+      // Debug print all data before submitting
+      debugPrint('======== SUBMITTING BID ========');
+      debugPrint('Book ID: ${widget.book.id}');
+      debugPrint('Book Title: ${widget.book.title}');
+      debugPrint('Bid Amount: $amount');
+      debugPrint('Message: $message');
+      debugPrint('Phone: $phone');
+
+      // Place the bid
       final bidId = await _bidService.placeBid(
         bookId: widget.book.id!,
         bookTitle: widget.book.title,
         bidAmount: amount,
+        message: message,
+        bidderPhone: phone,
       );
 
       if (!mounted) return;
 
+      // Check if bid was successful
       if (bidId != null) {
-        Navigator.pop(context, true);
-      } else {
+        debugPrint('Bid placed successfully with ID: $bidId');
+
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to place bid. Please try again.'),
-            backgroundColor: Colors.red,
+            content: Text(
+                'Bid placed successfully! Redirecting to your Bids page...'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
+
+        // Delay to allow Firestore to sync
+        await Future.delayed(const Duration(seconds: 1));
+
+        // Force refresh bid service to notify listeners
+        _bidService.notifyBookUpdate();
+
+        // Navigate to bids screen with replacement to ensure fresh page
+        if (mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const BidsScreen()),
+            (route) => route.isFirst, // Keep only the first route in the stack
+          );
+        }
+      } else {
+        // Show error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to place bid. Please try again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
+      debugPrint('Error in _submitBid: $e');
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('An error occurred. Please try again.'),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
         ),
       );
     } finally {
@@ -223,11 +271,37 @@ class _PlaceBidScreenState extends State<PlaceBidScreen> {
                   const SizedBox(height: 24),
 
                   // Submit Button
-                  AnimatedButton(
-                    onPressed: _submitBid,
-                    text: 'Submit Bid',
-                    icon: Icons.gavel,
-                    isLoading: _isSubmitting,
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSubmitting ? null : _submitBid,
+                      icon: const Icon(Icons.gavel),
+                      label: _isSubmitting
+                          ? const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.0,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text("Submitting..."),
+                              ],
+                            )
+                          : const Text("Submit Bid"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -5,6 +5,7 @@ import 'package:rive_animation/services/bid_service.dart';
 import 'package:rive_animation/services/book_service.dart';
 import 'package:rive_animation/components/animated_background.dart';
 import 'package:intl/intl.dart';
+import 'dart:async';
 
 class BidsScreen extends StatefulWidget {
   const BidsScreen({Key? key}) : super(key: key);
@@ -24,21 +25,51 @@ class _BidsScreenState extends State<BidsScreen>
   List<Bid> _receivedBids = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  StreamSubscription? _refreshSubscription;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    debugPrint('BidsScreen initialized - starting bid loading');
+
+    // Force immediate load
+    _loadBids();
+
+    // Subscribe to the refresh stream
+    _refreshSubscription = _bidService.refreshStream.listen((refreshed) {
+      debugPrint('Received refresh notification in BidsScreen: $refreshed');
+      // When a refresh notification is received, reload the bids
+      if (mounted) {
+        _loadBids();
+      }
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh bids when screen appears
+    debugPrint('BidsScreen didChangeDependencies - reloading bids');
     _loadBids();
   }
 
   @override
   void dispose() {
+    _refreshSubscription?.cancel();
     _tabController.dispose();
+    debugPrint('BidsScreen disposed');
     super.dispose();
   }
 
   Future<void> _loadBids() async {
+    debugPrint('===== LOADING BIDS IN BIDS SCREEN =====');
+    if (!mounted) {
+      debugPrint('BidsScreen not mounted during _loadBids, aborting');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
@@ -46,25 +77,54 @@ class _BidsScreenState extends State<BidsScreen>
 
     try {
       // Load bids placed by the current user
+      debugPrint('Loading user bids...');
       final myBids = await _bidService.getUserBids();
+      debugPrint('Loaded ${myBids.length} my bids');
+
+      if (myBids.isNotEmpty) {
+        for (var bid in myBids) {
+          debugPrint(
+              'My Bid: ${bid.id} for ${bid.bookTitle} - Amount: ${bid.bidAmount} - Status: ${bid.status}');
+        }
+      } else {
+        debugPrint('No bids placed by user were found');
+      }
 
       // Load bids received on books the user is selling
+      debugPrint('Loading received bids...');
       final receivedBids = await _bidService.getReceivedBids();
+      debugPrint('Loaded ${receivedBids.length} received bids');
 
+      if (receivedBids.isNotEmpty) {
+        for (var bid in receivedBids) {
+          debugPrint(
+              'Received Bid: ${bid.id} from ${bid.bidderName} - Amount: ${bid.bidAmount} - Status: ${bid.status}');
+        }
+      }
+
+      if (!mounted) {
+        debugPrint('BidsScreen no longer mounted after loading bids');
+        return;
+      }
+
+      setState(() {
+        _myBids = myBids;
+        _receivedBids = receivedBids;
+        _isLoading = false;
+      });
+
+      debugPrint(
+          'Bids screen updated with new data: ${_myBids.length} my bids, ${_receivedBids.length} received bids');
+    } catch (e) {
+      debugPrint('ERROR loading bids: $e');
       if (mounted) {
         setState(() {
-          _myBids = myBids;
-          _receivedBids = receivedBids;
+          _errorMessage = 'Error loading bids: ${e.toString()}';
           _isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _errorMessage = 'Error loading bids. Please try again.';
-        _isLoading = false;
-      });
-      print('Error loading bids: $e');
     }
+    debugPrint('===== BIDS LOADING COMPLETED =====');
   }
 
   Future<void> _handleBidAction(Bid bid, String action) async {
@@ -72,44 +132,61 @@ class _BidsScreenState extends State<BidsScreen>
       _isLoading = true;
     });
 
+    debugPrint('===== HANDLING BID ACTION =====');
+    debugPrint('Action: $action for bid ${bid.id} (${bid.bookTitle})');
+
     try {
       bool success = false;
 
       if (action == 'accept' || action == 'reject') {
+        debugPrint('Updating bid status to: $action');
         success = await _bidService.updateBidStatus(bid.id!, action);
+        debugPrint('Update status result: ${success ? 'Success' : 'Failed'}');
       } else if (action == 'delete') {
+        debugPrint('Deleting bid ${bid.id}');
         success = await _bidService.deleteBid(bid.id!);
+        debugPrint('Delete result: ${success ? 'Success' : 'Failed'}');
       }
 
       if (success && mounted) {
+        String message = action == 'accept'
+            ? 'Bid accepted successfully!'
+            : action == 'reject'
+                ? 'Bid rejected successfully'
+                : 'Bid deleted successfully';
+
+        debugPrint('Action completed successfully: $message');
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              action == 'accept'
-                  ? 'Bid accepted successfully!'
-                  : action == 'reject'
-                      ? 'Bid rejected'
-                      : 'Bid deleted',
-            ),
-            backgroundColor: action == 'accept' ? Colors.green : Colors.orange,
+            content: Text(message),
+            backgroundColor: action == 'accept'
+                ? Colors.green
+                : action == 'reject'
+                    ? Colors.red
+                    : Colors.orange,
           ),
         );
 
         // Reload bids
-        _loadBids();
+        debugPrint('Reloading bids after successful action');
+        await _loadBids();
       } else {
         setState(() {
           _isLoading = false;
           _errorMessage = 'Failed to ${action} bid. Please try again.';
         });
+        debugPrint('Failed to $action bid: $_errorMessage');
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'An error occurred. Please try again later.';
       });
-      print('Error in _handleBidAction: $e');
+      debugPrint('Error in _handleBidAction: $e');
     }
+
+    debugPrint('===== BID ACTION HANDLING COMPLETED =====');
   }
 
   @override

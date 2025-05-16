@@ -95,7 +95,22 @@ class _EntryPointState extends State<EntryPoint>
             MaterialPageRoute(
               builder: (context) => const AddBookScreen(),
             ),
-          );
+          ).then((bookAdded) {
+            // If a book was added (result is true), refresh the home page
+            if (bookAdded == true) {
+              // Find the HomePage and refresh it
+              if (selectedBottonNav.title == "Home") {
+                // If we're already on the home page, refresh immediately
+                // This is a workaround since we can't directly access the HomeContent state
+                setState(() {});
+              } else {
+                // If we're on another page, switch to home
+                setState(() {
+                  selectedBottonNav = bottomNavItems.first; // Home is first
+                });
+              }
+            }
+          });
         },
         backgroundColor: Theme.of(context).primaryColor,
         child: const Icon(Icons.add_circle_outline, color: Colors.white),

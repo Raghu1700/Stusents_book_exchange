@@ -135,163 +135,66 @@ class AnimatedAvatar extends StatefulWidget {
   State<AnimatedAvatar> createState() => _AnimatedAvatarState();
 }
 
-class _AnimatedAvatarState extends State<AnimatedAvatar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
+class _AnimatedAvatarState extends State<AnimatedAvatar> {
   late List<Color> _colors;
 
   @override
   void initState() {
     super.initState();
-
     // Get colors based on text
     _colors = AvatarGenerator.getColorPairFromString(widget.text);
-
-    // Setup animation
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
-
-    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final String initial = AvatarGenerator.getInitial(widget.text);
 
-    return AnimatedBuilder(
-      animation: _animation,
-      builder: (context, child) {
-        return Container(
-          width: widget.size,
-          height: widget.size * 1.33, // Book-like proportions
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                _colors[0],
-                Color.lerp(_colors[0], _colors[1], _animation.value)!,
-                _colors[1],
-              ],
+    return Container(
+      width: widget.size,
+      height: widget.size * 1.33, // Book-like proportions
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: _colors,
+        ),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              initial,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: widget.size * 0.4,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    blurRadius: 2.0,
+                    color: Colors.black.withOpacity(0.3),
+                    offset: const Offset(1, 1),
+                  ),
+                ],
+              ),
             ),
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Stack(
-            children: [
-              // Animated decorative elements
-              Positioned(
-                right: 0,
-                top: widget.size * 0.1 * _animation.value,
-                child: Container(
-                  width: widget.size * 0.5,
-                  height: widget.size * 0.5,
-                  decoration: BoxDecoration(
-                    color:
-                        Colors.white.withOpacity(0.1 + 0.05 * _animation.value),
-                    borderRadius: BorderRadius.circular(widget.size * 0.25),
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 10 + widget.size * 0.05 * _animation.value,
-                bottom: 10 + widget.size * 0.05 * _animation.value,
-                child: Container(
-                  width: widget.size * 0.3,
-                  height: widget.size * 0.3,
-                  decoration: BoxDecoration(
-                    color:
-                        Colors.white.withOpacity(0.1 + 0.05 * _animation.value),
-                    borderRadius: BorderRadius.circular(widget.size * 0.15),
-                  ),
-                ),
-              ),
-
-              // Book spine
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: widget.size * 0.1,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: _colors[1].withOpacity(0.7),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      bottomLeft: Radius.circular(8),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Center content with the text initial
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      initial,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: widget.size * 0.4,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withOpacity(0.3),
-                            offset: Offset(1, 1),
-                            blurRadius: 2,
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: widget.size * 0.05),
-                    Container(
-                      width: widget.size * (0.5 + 0.1 * _animation.value),
-                      height: 2,
-                      color: Colors.white
-                          .withOpacity(0.5 + 0.2 * _animation.value),
-                    ),
-                    SizedBox(height: widget.size * 0.1),
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          widget.text.length > 15
-                              ? widget.text.substring(0, 15) + "..."
-                              : widget.text,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: widget.size * 0.12,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+            SizedBox(height: widget.size * 0.04),
+            Container(
+              width: widget.size * 0.6,
+              height: 2,
+              color: Colors.white.withOpacity(0.7),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

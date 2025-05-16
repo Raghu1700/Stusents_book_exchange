@@ -18,14 +18,19 @@ class _SearchScreenState extends State<SearchScreen>
   late Animation<double> _fadeAnimation;
 
   final List<String> _categories = [
+    'Academics',
+    'Fiction',
+    'Non-Fiction',
+    'Mystery',
+    'Thriller',
+    'Romance',
+    'Sci-Fi',
+    'Fantasy',
+    'Biography',
+    'Self-Help',
+    'Reference',
     'Textbook',
-    'Computer Science',
-    'Mathematics',
-    'Science',
-    'Engineering',
-    'Business',
-    'Arts',
-    'Other',
+    'Other'
   ];
 
   @override

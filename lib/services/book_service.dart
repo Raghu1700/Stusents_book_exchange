@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -11,28 +12,56 @@ class BookService {
   final String booksCollection = 'book';
   final String userBookmarksCollection = 'user_bookmarks';
 
+  // Stream controller to notify when books are updated
+  final StreamController<bool> _refreshController =
+      StreamController<bool>.broadcast();
+
+  // Stream that can be listened to for updates
+  Stream<bool> get refreshStream => _refreshController.stream;
+
+  // Method to notify listeners that books have been updated
+  void notifyBookUpdate() {
+    _refreshController.add(true);
+  }
+
+  // Dispose the controller when not needed
+  void dispose() {
+    _refreshController.close();
+  }
+
   // Get all books with pagination
   Future<List<Book>> getBooks({
     int limit = 10,
     DocumentSnapshot? lastDocument,
     String? category,
+    String? grade,
   }) async {
     try {
       print('----- getBooks method -----');
       print('Retrieving books from collection: $booksCollection');
       print('Category filter: $category');
+      print('Grade filter: $grade');
 
       // Start with a basic query on the books collection
       Query query = _firestore.collection(booksCollection);
 
-      // Only add where clauses if needed
+      // Add where clauses for filtering
       if (category != null && category.isNotEmpty) {
         query = query.where('category', isEqualTo: category);
         print('Added category filter: $category');
       }
 
-      // Add order
-      query = query.orderBy('createdAt', descending: true);
+      if (grade != null && grade.isNotEmpty) {
+        query = query.where('grade', isEqualTo: grade);
+        print('Added grade filter: $grade');
+      }
+
+      // Only add order and pagination if needed
+      // Don't add sorting when filtering by category to avoid index issues
+      if (category == null && grade == null) {
+        // Add order if not filtering by category or grade
+        query = query.orderBy('createdAt', descending: true);
+      }
 
       // Add pagination if needed
       if (lastDocument != null) {
@@ -82,16 +111,21 @@ class BookService {
     }
   }
 
-  // Get books by category
-  Stream<List<Book>> getBooksByCategory(String category) {
-    return _firestore
-        .collection(booksCollection)
-        .where('category', isEqualTo: category)
-        .where('isAvailable', isEqualTo: true)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList());
+  // Get books by category - updated to use Future instead of Stream for consistency
+  Future<List<Book>> getBooksByCategory(String category) async {
+    try {
+      final snapshot = await _firestore
+          .collection(booksCollection)
+          .where('category', isEqualTo: category)
+          .where('isAvailable', isEqualTo: true)
+          .limit(10)
+          .get();
+
+      return snapshot.docs.map((doc) => Book.fromFirestore(doc)).toList();
+    } catch (e) {
+      print('Error getting books by category: $e');
+      return [];
+    }
   }
 
   // Get books by seller
@@ -181,6 +215,9 @@ class BookService {
         final docSnapshot = await docRef.get();
         print('Book document created: ${docSnapshot.exists}');
         print('Book added successfully with ID: ${docRef.id}');
+
+        // Notify listeners that a book was added
+        notifyBookUpdate();
 
         return docRef.id;
       } catch (e) {
@@ -280,6 +317,10 @@ class BookService {
 
       // Delete document from Firestore
       await _firestore.collection(booksCollection).doc(bookId).delete();
+
+      // Notify listeners that a book was deleted
+      notifyBookUpdate();
+
       return true;
     } catch (e) {
       print('Error deleting book: $e');
@@ -483,34 +524,36 @@ class BookService {
 
       // Default categories if none are found
       return [
-        'Textbook',
-        'Reference',
+        'Academics',
         'Fiction',
         'Non-Fiction',
-        'Science',
-        'Engineering',
-        'Mathematics',
-        'Computer Science',
-        'Business',
-        'Arts',
-        'Humanities',
-        'Social Sciences',
-        'Medicine',
-        'Law',
+        'Mystery',
+        'Thriller',
+        'Romance',
+        'Sci-Fi',
+        'Fantasy',
+        'Biography',
+        'Self-Help',
+        'Reference',
+        'Textbook',
         'Other'
       ];
     } catch (e) {
       print('Error getting categories: $e');
       // Return default categories on error
       return [
-        'Textbook',
-        'Reference',
+        'Academics',
         'Fiction',
         'Non-Fiction',
-        'Science',
-        'Engineering',
-        'Mathematics',
-        'Computer Science',
+        'Mystery',
+        'Thriller',
+        'Romance',
+        'Sci-Fi',
+        'Fantasy',
+        'Biography',
+        'Self-Help',
+        'Reference',
+        'Textbook',
         'Other'
       ];
     }

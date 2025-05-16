@@ -26,7 +26,7 @@ class _AddBookScreenState extends State<AddBookScreen>
 
   String _selectedCategory = 'Textbook';
   String _selectedCondition = 'Good';
-  String _selectedGrade = 'All';
+  String _selectedGrade = 'Academics';
 
   final List<String> _categories = [
     'Textbook',
@@ -46,19 +46,19 @@ class _AddBookScreenState extends State<AddBookScreen>
   ];
 
   final List<String> _grades = [
-    'All',
-    '1',
-    '2',
-    '3',
-    '4',
-    '5',
-    '6',
-    '7',
-    '8',
-    '9',
-    '10',
-    '11',
-    '12'
+    'Academics',
+    'Fiction',
+    'Non-Fiction',
+    'Mystery',
+    'Thriller',
+    'Romance',
+    'Sci-Fi',
+    'Fantasy',
+    'Biography',
+    'Self-Help',
+    'Reference',
+    'Textbook',
+    'Other'
   ];
 
   final List<String> _subjects = [
@@ -263,77 +263,11 @@ class _AddBookScreenState extends State<AddBookScreen>
                                 ),
                                 const SizedBox(height: 20),
 
-                                // Category Dropdown
+                                // Genre Dropdown
                                 DropdownButtonFormField<String>(
                                   decoration: _buildInputDecoration(
-                                    label: 'Book Type',
+                                    label: 'Genre/Category',
                                     icon: Icons.category,
-                                  ),
-                                  value: _selectedCategory,
-                                  style: const TextStyle(
-                                    fontFamily: 'Intel',
-                                    fontSize: 16,
-                                    color: Colors.black87,
-                                  ),
-                                  onChanged: (newValue) {
-                                    setState(() {
-                                      _selectedCategory = newValue!;
-                                    });
-                                  },
-                                  items: _categories
-                                      .map<DropdownMenuItem<String>>(
-                                          (String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(
-                                        value,
-                                        style: const TextStyle(
-                                          fontFamily: 'Intel',
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Subject Dropdown
-                                DropdownButtonFormField<String>(
-                                  decoration: _buildInputDecoration(
-                                    label: 'Subject',
-                                    icon: Icons.subject,
-                                  ),
-                                  value: _selectedSubject,
-                                  style: const TextStyle(
-                                    fontFamily: 'Intel',
-                                    fontSize: 16,
-                                    color: Colors.black87,
-                                  ),
-                                  onChanged: (newValue) {
-                                    setState(() {
-                                      _selectedSubject = newValue!;
-                                    });
-                                  },
-                                  items: _subjects
-                                      .map<DropdownMenuItem<String>>(
-                                          (String value) {
-                                    return DropdownMenuItem<String>(
-                                      value: value,
-                                      child: Text(
-                                        value,
-                                        style: const TextStyle(
-                                          fontFamily: 'Intel',
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                                const SizedBox(height: 20),
-
-                                // Grade Level Dropdown
-                                DropdownButtonFormField<String>(
-                                  decoration: _buildInputDecoration(
-                                    label: 'Grade Level',
-                                    icon: Icons.school,
                                   ),
                                   value: _selectedGrade,
                                   style: const TextStyle(
@@ -405,7 +339,7 @@ class _AddBookScreenState extends State<AddBookScreen>
                                   decoration: _buildInputDecoration(
                                     label: 'Description',
                                     icon: Icons.description,
-                                    hint: 'Enter book description',
+                                    hint: 'Enter book description (optional)',
                                   ),
                                 ),
                                 const SizedBox(height: 20),
@@ -420,7 +354,7 @@ class _AddBookScreenState extends State<AddBookScreen>
                                   keyboardType: TextInputType.numberWithOptions(
                                       decimal: true),
                                   decoration: _buildInputDecoration(
-                                    label: 'Price',
+                                    label: 'Expected Price',
                                     icon: Icons.currency_rupee,
                                     hint: 'Enter the price',
                                   ),
@@ -442,7 +376,7 @@ class _AddBookScreenState extends State<AddBookScreen>
                                   ),
                                   keyboardType: TextInputType.phone,
                                   decoration: _buildInputDecoration(
-                                    label: 'Contact Number',
+                                    label: 'WhatsApp/Contact Number',
                                     icon: Icons.phone,
                                     hint: 'Enter your WhatsApp number',
                                   ),
@@ -520,7 +454,7 @@ class _AddBookScreenState extends State<AddBookScreen>
         final bookId = await _bookService.addBook(
           title: _titleController.text.trim(),
           author: _authorController.text.trim(),
-          category: _selectedCategory,
+          category: _selectedGrade,
           description: _descriptionController.text.trim(),
           price: price,
           condition: _selectedCondition,
@@ -529,7 +463,6 @@ class _AddBookScreenState extends State<AddBookScreen>
           edition: '',
           isbn: '',
           coverImage: null,
-          subject: _selectedSubject,
         );
 
         if (bookId != null && mounted) {
@@ -554,11 +487,15 @@ class _AddBookScreenState extends State<AddBookScreen>
           _sellerPhoneController.clear();
           setState(() {
             _isLoading = false;
-            _selectedCategory = 'Textbook';
-            _selectedCondition = 'Good';
-            _selectedGrade = 'All';
-            _selectedSubject = 'Mathematics';
+            _selectedGrade = 'Academics';
           });
+
+          // Navigate back to home page and indicate a book was added
+          if (mounted) {
+            // Find the parent Navigator
+            Navigator.of(context)
+                .pop(true); // Return true to indicate a book was added
+          }
         } else {
           setState(() {
             _errorMessage = 'Book could not be added. Please try again.';

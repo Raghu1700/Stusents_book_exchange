@@ -224,11 +224,16 @@ class _SignUpFormState extends State<SignUpForm> {
                     if (value == null || value.isEmpty) {
                       return "Name is required";
                     }
+                    if (value.length < 3) {
+                      return "Username must be at least 3 characters";
+                    }
                     return null;
                   },
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.person_outline),
+                    hintText: "Enter your username / display name",
+                    helperText: "This name will be visible to other users",
                   ),
                 ),
               ),
@@ -268,6 +273,7 @@ class _SignUpFormState extends State<SignUpForm> {
                 padding: const EdgeInsets.only(top: 8, bottom: 16),
                 child: TextFormField(
                   controller: _phoneController,
+                  keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return "Phone number is required";
@@ -277,10 +283,12 @@ class _SignUpFormState extends State<SignUpForm> {
                     }
                     return null;
                   },
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.next,
+                  textInputAction: TextInputAction.done,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.phone_outlined),
+                    hintText: "Required for WhatsApp contact",
+                    helperText:
+                        "Used for WhatsApp communication with buyers/sellers",
                   ),
                 ),
               ),

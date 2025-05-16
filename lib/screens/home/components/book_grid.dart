@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'package:rive_animation/model/book.dart';
 import 'package:rive_animation/screens/home/components/book_card.dart';
 import 'package:rive_animation/services/book_service.dart';
@@ -12,6 +13,7 @@ class BookGrid extends StatefulWidget {
   final bool skipFirstBooks;
   final int skipCount;
   final int? limit;
+  final String? grade;
 
   const BookGrid({
     Key? key,
@@ -21,6 +23,7 @@ class BookGrid extends StatefulWidget {
     this.skipFirstBooks = false,
     this.skipCount = 2,
     this.limit,
+    this.grade,
   }) : super(key: key);
 
   @override
@@ -30,6 +33,7 @@ class BookGrid extends StatefulWidget {
 class _BookGridState extends State<BookGrid> {
   final BookService _bookService = BookService();
   final ScrollController _scrollController = ScrollController();
+  StreamSubscription? _refreshSubscription;
 
   List<Book> _books = [];
   DocumentSnapshot? _lastDocument;
@@ -44,6 +48,12 @@ class _BookGridState extends State<BookGrid> {
     super.initState();
     _loadBooks();
     _scrollController.addListener(_scrollListener);
+
+    // Subscribe to the refresh stream
+    _refreshSubscription = _bookService.refreshStream.listen((_) {
+      // When a refresh notification is received, reload the books
+      _refreshBooks();
+    });
   }
 
   @override
@@ -54,6 +64,7 @@ class _BookGridState extends State<BookGrid> {
         widget.searchQuery != oldWidget.searchQuery ||
         widget.skipFirstBooks != oldWidget.skipFirstBooks ||
         widget.skipCount != oldWidget.skipCount ||
+        widget.grade != oldWidget.grade ||
         widget.limit != oldWidget.limit) {
       _resetList();
       _loadBooks();
@@ -134,6 +145,7 @@ class _BookGridState extends State<BookGrid> {
             limit: fetchLimit,
             lastDocument: _lastDocument,
             category: widget.category,
+            grade: widget.grade,
           );
 
           print('Loaded ${books.length} books from Firestore');
@@ -196,6 +208,7 @@ class _BookGridState extends State<BookGrid> {
   void dispose() {
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
+    _refreshSubscription?.cancel();
     super.dispose();
   }
 
@@ -282,12 +295,12 @@ class _BookGridState extends State<BookGrid> {
       onRefresh: _refreshBooks,
       child: GridView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+        padding: const EdgeInsets.all(8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: 0.8,
-          crossAxisSpacing: 4,
-          mainAxisSpacing: 4,
+          childAspectRatio: 0.65,
+          crossAxisSpacing: 8,
+          mainAxisSpacing: 12,
         ),
         itemCount: _books.length + (_hasMore ? 1 : 0),
         itemBuilder: (context, index) {

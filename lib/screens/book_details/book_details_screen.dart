@@ -97,15 +97,24 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
 
   Future<void> _checkBidsStatus() async {
     try {
+      debugPrint('Checking bids status for book: ${widget.book.id}');
       final bids = await _bidService.getBidsForBook(widget.book.id!);
+
+      // Check if current user has placed any bids
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final userHasBid = currentUser != null &&
+          bids.any((bid) => bid.bidderId == currentUser.uid);
+
       if (mounted) {
         setState(() {
-          _hasBids = bids.isNotEmpty;
+          _hasBids = userHasBid || bids.isNotEmpty;
           _bids = bids;
         });
       }
+      debugPrint(
+          'Checked bids status: Has bids = $_hasBids, User has bid = $userHasBid, Total bids: ${bids.length}');
     } catch (e) {
-      print('Error checking bids status: $e');
+      debugPrint('Error checking bids status: $e');
     }
   }
 
@@ -210,49 +219,53 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     }
 
     if (phoneNumber != null && phoneNumber.isNotEmpty) {
-      // Format phone number - remove any spaces or special characters
-      phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
-
-      // Add country code if not present (assuming Indian numbers)
-      if (!phoneNumber.startsWith('+')) {
-        phoneNumber = '91$phoneNumber';
-      }
-
-      final bookTitle = widget.book.title;
-      final price = NumberFormat.currency(
-        symbol: '₹',
-        decimalDigits: 2,
-      ).format(widget.book.price);
-
-      // Create WhatsApp URI
-      final message =
-          'Hi, I am interested in your book "$bookTitle" priced at $price on the Student Book Exchange app.';
-      final encodedMessage = Uri.encodeComponent(message);
-      final uri = Uri.parse('https://wa.me/$phoneNumber?text=$encodedMessage');
-
       try {
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Could not launch WhatsApp'),
-                backgroundColor: Colors.red,
-              ),
-            );
+        // Format phone number - remove any spaces or special characters
+        phoneNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
+
+        // Add country code if not present (assuming Indian numbers)
+        if (!phoneNumber.startsWith('+')) {
+          if (phoneNumber.startsWith('91')) {
+            phoneNumber = '+$phoneNumber';
+          } else {
+            phoneNumber = '+91$phoneNumber';
           }
+        }
+
+        print('Formatted phone number: $phoneNumber');
+
+        final bookTitle = widget.book.title;
+        final price = NumberFormat.currency(
+          symbol: '₹',
+          decimalDigits: 2,
+        ).format(widget.book.price);
+
+        // Create WhatsApp URI - Use wa.me format which is more reliable
+        final message =
+            'Hi, I am interested in your book "$bookTitle" priced at $price on the Student Book Exchange app.';
+        final encodedMessage = Uri.encodeComponent(message);
+
+        // Remove the + from the phone number for wa.me links
+        final waPhoneNumber = phoneNumber.replaceAll('+', '');
+        final uri =
+            Uri.parse('https://wa.me/$waPhoneNumber?text=$encodedMessage');
+
+        print('Launching WhatsApp with URI: $uri');
+
+        if (await canLaunchUrl(uri)) {
+          final launched =
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+          if (!launched) {
+            _showWhatsAppError(
+                'Could not launch WhatsApp. Please make sure WhatsApp is installed.');
+          }
+        } else {
+          _showWhatsAppError('WhatsApp is not available on this device.');
         }
       } catch (e) {
         print('Error launching WhatsApp: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error opening WhatsApp: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        _showWhatsAppError('Error: $e');
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -260,6 +273,23 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
           content: Text(
               'No contact information available. Please update your profile with a phone number.'),
           backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
+  void _showWhatsAppError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'OK',
+            textColor: Colors.white,
+            onPressed: () {},
+          ),
         ),
       );
     }
@@ -568,285 +598,265 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     });
   }
 
+  Future<void> _removeBook() async {
+    if (widget.book.id == null || !_isOwner) return;
+
+    // Show confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove Book'),
+        content: const Text(
+          'Are you sure you want to remove this book? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final success = await _bookService.deleteBook(widget.book.id!);
+        if (success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Book successfully removed'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context); // Go back to the previous screen
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to remove book. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error removing book: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final formatter = NumberFormat.currency(
       symbol: '₹',
-      decimalDigits: 2,
+      decimalDigits: 0,
     );
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Book Details'),
+        actions: [
+          if (widget.book.id != null)
+            IconButton(
+              icon: Icon(
+                _isBookmarked ? Icons.favorite : Icons.favorite_border,
+                color: _isBookmarked ? Colors.red : Colors.white,
+              ),
+              onPressed: _toggleBookmark,
+            ),
+        ],
+      ),
       body: AnimatedBackground(
         blurSigma: 25.0,
         overlayColor: Colors.white.withOpacity(0.3),
-        child: SafeArea(
-          child: Stack(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CustomScrollView(
-                slivers: [
-                  // App Bar
-                  SliverAppBar(
-                    expandedHeight: 400,
-                    floating: false,
-                    pinned: true,
-                    backgroundColor: Colors.transparent,
-                    elevation: 0,
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Theme.of(context).primaryColor.withOpacity(0.1),
-                              Colors.white.withOpacity(0.1),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                        ),
-                        child: Hero(
-                          tag: widget.book.id ?? widget.book.title,
-                          child: AvatarGenerator.buildAnimatedAvatar(
-                            widget.book.title,
-                            size: 300,
-                          ),
-                        ),
+              // Book Image
+              Center(
+                child: Container(
+                  width: 200,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        spreadRadius: 2,
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
                       ),
-                    ),
-                    leading: Container(
-                      margin: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () => Navigator.pop(context),
-                        color: Colors.black87,
-                      ),
-                    ),
-                    actions: [
-                      if (!_isOwner)
-                        Container(
-                          margin: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: IconButton(
-                            icon: Icon(
-                              _isBookmarked
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              color:
-                                  _isBookmarked ? Colors.red : Colors.black87,
-                            ),
-                            onPressed: _isLoading ? null : _toggleBookmark,
-                          ),
-                        ),
                     ],
                   ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: AvatarGenerator.buildAnimatedAvatar(
+                      widget.book.title,
+                      size: 200,
+                    ),
+                  ),
+                ),
+              ),
 
-                  // Book Details
-                  SliverToBoxAdapter(
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 24),
+
+              // Book Details Card
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Book Name
+                      Text(
+                        widget.book.title,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Book Details Table
+                      Table(
+                        columnWidths: const {
+                          0: FlexColumnWidth(1),
+                          1: FlexColumnWidth(2),
+                        },
                         children: [
-                          // Title
-                          Text(
-                            widget.book.title,
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              fontFamily: 'Poppins',
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Author
-                          Text(
-                            'by ${widget.book.author}',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: Colors.grey[600],
-                              fontFamily: 'Intel',
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Price
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .primaryColor
-                                  .withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              formatter.format(widget.book.price),
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).primaryColor,
-                                fontFamily: 'Poppins',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Description
-                          Text(
-                            'Description',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            widget.book.description,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                              height: 1.5,
-                              fontFamily: 'Intel',
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Details Section
-                          Text(
-                            'Details',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildDetailRow('Condition', widget.book.condition),
-                          _buildDetailRow('Category', widget.book.category),
-                          _buildDetailRow('Grade', widget.book.grade),
-                          const SizedBox(height: 24),
-
-                          // Seller Information Section
-                          Text(
-                            'Seller Information',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey[800],
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          _buildDetailRow('Name', widget.book.sellerName),
-                          if (widget.book.sellerPhone != null &&
-                              widget.book.sellerPhone!.isNotEmpty)
-                            _buildDetailRow('Phone', widget.book.sellerPhone!),
-                          const SizedBox(
-                              height: 100), // Space for bottom buttons
+                          _buildTableRow('Class', widget.book.grade),
+                          _buildTableRow('Subject', widget.book.category),
+                          _buildTableRow(
+                              'Price', formatter.format(widget.book.price)),
+                          _buildTableRow('Condition', widget.book.condition),
+                          _buildTableRow('Seller', widget.book.sellerName),
                         ],
                       ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Contact buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.chat),
+                      label: const Text('SMS'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: _contactSeller,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.message),
+                      label: const Text('WhatsApp'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: _contactSellerWhatsApp,
                     ),
                   ),
                 ],
               ),
 
-              // Bottom Action Buttons
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, -4),
-                      ),
-                    ],
-                  ),
-                  child: !_isOwner
-                      ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ElevatedButton.icon(
-                              onPressed: _navigateToPlaceBid,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Theme.of(context).primaryColor,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: const Icon(Icons.currency_rupee, size: 24),
-                              label: const Text(
-                                'Place Your Bid',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            ElevatedButton.icon(
-                              onPressed: _contactSellerWhatsApp,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor:
-                                    const Color(0xFF25D366), // WhatsApp green
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: const Icon(Icons.chat, size: 24),
-                              label: const Text(
-                                'Contact Seller on WhatsApp',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        )
-                      : ElevatedButton.icon(
-                          onPressed: _showBids,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Theme.of(context).primaryColor,
-                            minimumSize: const Size(double.infinity, 50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          icon: const Icon(Icons.currency_exchange, size: 24),
-                          label: Text(
-                            _hasBids
-                                ? 'View Bids (${_bids.length})'
-                                : 'No Bids Yet',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
+              const SizedBox(height: 16),
+
+              // Place Bid Button
+              if (!_isOwner && widget.book.id != null)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.gavel),
+                    label: Text(_hasBids ? 'View Your Bid' : 'Place Bid'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PlaceBidScreen(
+                            book: widget.book,
                           ),
                         ),
+                      ).then((_) {
+                        // Refresh bid status when returning from place bid screen
+                        debugPrint(
+                            'Returned from bid screen, refreshing status');
+                        _checkBidsStatus();
+
+                        // Also notify bid service of update
+                        _bidService.notifyBookUpdate();
+                      });
+                    },
+                  ),
                 ),
-              ),
+
+              // Book Owner Actions
+              if (_isOwner && widget.book.id != null) ...[
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    // View Bids Button
+                    if (_hasBids)
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.attach_money),
+                          label: const Text('View Bids'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: _showBids,
+                        ),
+                      ),
+                    if (_hasBids) const SizedBox(width: 16),
+                    // Remove Book Button
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Remove Book'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: _removeBook,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -854,33 +864,29 @@ class _BookDetailsScreenState extends State<BookDetailsScreen> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "$label:",
-            style: TextStyle(
+  TableRow _buildTableRow(String label, String value) {
+    return TableRow(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
               fontSize: 16,
-              color: Colors.grey[600],
-              fontFamily: 'Intel',
             ),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'Intel',
-              ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

@@ -28,111 +28,108 @@ class BookCard extends StatelessWidget {
       child: Card(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(8),
         ),
-        elevation: 1,
-        margin: const EdgeInsets.all(1),
-        child: Stack(
+        elevation: 2,
+        margin: const EdgeInsets.all(4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Main content
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            // Book Cover Image with Favorite Button overlay
+            Stack(
               children: [
-                // Book Cover - Replace with Animated Avatar
+                // Book Cover Image
                 AspectRatio(
                   aspectRatio: 1.0, // Square aspect ratio
                   child: ClipRRect(
                     borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(4)),
+                        const BorderRadius.vertical(top: Radius.circular(8)),
                     child: AvatarGenerator.buildAnimatedAvatar(
                       book.title,
-                      size: MediaQuery.of(context).size.width / 3 -
-                          16, // Adjusted for 3 columns
+                      size: MediaQuery.of(context).size.width / 2 - 16,
                     ),
                   ),
                 ),
 
-                // Ultra compact book details
-                Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title with price overlay
-                      Stack(
-                        children: [
-                          // Title
-                          Text(
-                            book.title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 9, // Slightly smaller font
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-
-                          // Price as positioned badge in corner
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 2,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor,
-                                borderRadius: BorderRadius.circular(2),
-                              ),
-                              child: Text(
-                                formatter.format(book.price),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 8, // Slightly smaller font
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                // Heart Icon for adding to favorites
+                if (showBookmarkButton)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ],
+                      child: _BookmarkButton(bookId: book.id!),
+                    ),
                   ),
-                ),
               ],
             ),
 
-            // Bookmark button overlay
-            if (showBookmarkButton && book.id != null)
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: _BookmarkButton(bookId: book.id!),
+            // Book information - make this more compact
+            Padding(
+              padding: const EdgeInsets.all(6.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Book Name - Author
+                  Text(
+                    "${book.title} - ${book.author}",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+
+                  const SizedBox(height: 2),
+
+                  // Class only (simplified layout)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Class: ${book.grade}',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[700],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+
+                      // Price (moved inline to save vertical space)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).primaryColor,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          formatter.format(book.price),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
-  }
-
-  Color _getConditionColor(String condition) {
-    switch (condition.toLowerCase()) {
-      case 'new':
-        return Colors.green;
-      case 'like new':
-        return Colors.green.shade700;
-      case 'very good':
-        return Colors.blue;
-      case 'good':
-        return Colors.blue.shade700;
-      case 'fair':
-        return Colors.orange;
-      case 'poor':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
   }
 }
 
@@ -209,24 +206,28 @@ class _BookmarkButtonState extends State<_BookmarkButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0, bottom: 8.0),
-      child: Align(
-        alignment: Alignment.bottomRight,
-        child: _isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : IconButton(
-                icon: Icon(
-                  _isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-                  color: _isBookmarked ? Colors.amber : Colors.grey,
-                ),
-                onPressed: _toggleBookmark,
+    return _isLoading
+        ? const SizedBox(
+            width: 30,
+            height: 30,
+            child: Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
               ),
-      ),
-    );
+            ),
+          )
+        : IconButton(
+            icon: Icon(
+              _isBookmarked ? Icons.favorite : Icons.favorite_border,
+              color: _isBookmarked ? Colors.red : Colors.white,
+              size: 22,
+            ),
+            onPressed: _toggleBookmark,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            iconSize: 22,
+          );
   }
 }

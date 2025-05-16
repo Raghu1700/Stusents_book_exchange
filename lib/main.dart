@@ -127,7 +127,9 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const AuthenticationWrapper(),
+      // Use Debug Navigator for testing
+      home:
+          const AuthenticationWrapper(), // Using normal mode instead of Debug mode
     );
   }
 }
